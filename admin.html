@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Miniplan Admin</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="firebase.js"></script>
+<style>
+body { font-family: sans-serif; padding: 20px; max-width: 600px; margin:auto; }
+input, select, button { font-size: 16px; margin: 5px 0; width: 100%; padding: 6px; }
+h1, h2 { text-align: center; }
+.godi { border: 1px solid #ccc; padding: 8px; margin:5px 0; border-radius:5px;}
+</style>
+</head>
+<body>
+<h1>Miniplan Admin</h1>
+
+<h2>Neue Gottesdienste hinzufügen</h2>
+<input type="date" id="datum">
+<input type="time" id="uhrzeit">
+<input type="text" id="anlass" placeholder="Anlass (z.B. Festmesse)">
+<button id="addGodi">Gottesdienst speichern</button>
+
+<h2>Abmeldefrist festlegen</h2>
+<input type="datetime-local" id="frist">
+<button id="saveFrist">Frist speichern</button>
+
+<h2>Aktuelle Gottesdienste</h2>
+<div id="godis"></div>
+
+<script>
+// --- Godis anzeigen ---
+async function renderGodis(){
+  const list = document.getElementById("godis");
+  list.innerHTML="";
+  const snapshot = await db.collection("godis").get();
+  snapshot.forEach(doc=>{
+    const gd = doc.data();
+    const div = document.createElement("div");
+    div.className="godi";
+    div.textContent = `${gd.datum} ${gd.uhrzeit} ${gd.anlass}`;
+    list.appendChild(div);
+  });
+}
+
+// --- Godi hinzufügen ---
+document.getElementById("addGodi").onclick = async ()=>{
+  const datum = document.getElementById("datum").value;
+  const uhrzeit = document.getElementById("uhrzeit").value;
+  const anlass = document.getElementById("anlass").value;
+  if(!datum||!uhrzeit||!anlass){ alert("Alle Felder ausfüllen"); return;}
+  await db.collection("godis").add({datum,uhrzeit,anlass});
+  renderGodis();
+}
+
+// --- Frist speichern ---
+document.getElementById("saveFrist").onclick = async ()=>{
+  const frist = document.getElementById("frist").value;
+  if(!frist){ alert("Frist angeben"); return;}
+  await db.collection("config").doc("frist").set({wert:frist});
+  alert("Frist gespeichert");
+}
+
+renderGodis();
+</script>
+</body>
+</html>
