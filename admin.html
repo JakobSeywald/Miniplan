@@ -6,191 +6,159 @@
 <title>Miniplan Admin</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet">
 <style>
-body { padding:20px; font-family:sans-serif;}
-.card { margin-bottom:10px; padding:10px; }
-.weihrauch { border-left: 4px solid gold; }
-.btn-publish { background-color: #28a745; color:white; margin-right:5px; }
-.btn-withdraw { background-color: #6c757d; color:white; }
+body { padding:20px; font-family:sans-serif; }
+.nav-tabs .nav-link { font-weight:bold; }
+.card { border-radius:15px; box-shadow:0 2px 6px rgba(0,0,0,0.15); margin-bottom:10px; padding:10px; transition:all 0.2s ease; }
+.card:hover { transform:translateY(-2px); box-shadow:0 6px 12px rgba(0,0,0,0.25); }
+.btn { border-radius:25px; padding:10px 20px; font-weight:bold; transition:all 0.2s; }
+.btn:hover { transform:translateY(-2px); box-shadow:0 4px 6px rgba(0,0,0,0.2); }
+.btn-publish { background: linear-gradient(to right,#28a745,#218838); color:white; margin-right:5px; }
+.btn-withdraw { background: linear-gradient(to right,#6c757d,#5a6268); color:white; }
+.btn-primary { background: linear-gradient(to right,#0d6efd,#0b5ed7); color:white; }
+.btn-secondary { background: linear-gradient(to right,#6c757d,#5a6268); color:white; }
 </style>
 </head>
 <body>
 
-<h2>Admin Miniplan</h2>
+<h2>Miniplan Admin</h2>
 
-<div id="adminUI">
+<ul class="nav nav-tabs" id="adminTabs" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link active" id="minis-tab" data-bs-toggle="tab" data-bs-target="#minis" type="button">Miniliste</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="godis-tab" data-bs-toggle="tab" data-bs-target="#godis" type="button">Gottesdienste</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="zuteilung-tab" data-bs-toggle="tab" data-bs-target="#zuteilung" type="button">Zuteilen</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="pdf-tab" data-bs-toggle="tab" data-bs-target="#pdf" type="button">Miniplan / PDF</button>
+  </li>
+</ul>
 
-<h4>Minis verwalten</h4>
-<textarea id="minisImport" rows="4" class="form-control" placeholder="Liste einfügen (ein Name pro Zeile)"></textarea>
-<button class="btn btn-success mt-2" onclick="importMinis()">Importieren / Aktualisieren</button>
-<div id="minisList"></div>
+<div class="tab-content mt-3">
+  <!-- Miniliste -->
+  <div class="tab-pane fade show active" id="minis" role="tabpanel">
+    <h4>Minis verwalten</h4>
+    <textarea id="minisImport" rows="4" class="form-control" placeholder="Liste einfügen (ein Name pro Zeile)"></textarea>
+    <button type="button" class="btn btn-success mt-2" onclick="importMinis()">Importieren / Aktualisieren</button>
+    <div id="minisList" class="mt-3"></div>
+  </div>
 
-<hr>
-<h4>Gottesdienste verwalten</h4>
-<textarea id="godisImport" rows="4" class="form-control" placeholder="Liste: Datum, Uhrzeit, Anlass, Anzahl, Weihrauch (true/false)"></textarea>
-<button class="btn btn-success mt-2" onclick="importGodis()">Importieren / Aktualisieren</button>
-<div id="godisList"></div>
+  <!-- Gottesdienste -->
+  <div class="tab-pane fade" id="godis" role="tabpanel">
+    <h4>Gottesdienste verwalten</h4>
+    <textarea id="godisImport" rows="4" class="form-control" placeholder="Liste: Datum, Uhrzeit, Anlass, Anzahl, Weihrauch (true/false)"></textarea>
+    <button type="button" class="btn btn-success mt-2" onclick="importGodis()">Importieren / Aktualisieren</button>
+    <div id="godisList" class="mt-3"></div>
+  </div>
 
-<hr>
-<h4>Frist & Veröffentlichung</h4>
-<input type="datetime-local" id="fristInput" class="form-control mb-2">
-<button class="btn btn-publish" onclick="veroeffentlichen()">Veröffentlichen</button>
-<button class="btn btn-withdraw" onclick="zurueckziehen()">Zurückziehen</button>
+  <!-- Zuteilen -->
+  <div class="tab-pane fade" id="zuteilung" role="tabpanel">
+    <h4>Automatische Zuteilung</h4>
+    <button type="button" class="btn btn-primary mb-2" onclick="automatischeZuteilung()">Jetzt zuordnen</button>
+    <div id="zuordnungList"></div>
+  </div>
 
-<hr>
-<h4>Automatische Zuteilung</h4>
-<button class="btn btn-primary" onclick="automatischeZuteilung()">Jetzt zuordnen</button>
-<div id="zuordnungList"></div>
-
-<hr>
-<h4>PDF Export</h4>
-<button class="btn btn-secondary" onclick="exportPDF()">Plan exportieren</button>
-
+  <!-- Miniplan / PDF -->
+  <div class="tab-pane fade" id="pdf" role="tabpanel">
+    <h4>Fertiger Miniplan / PDF Export</h4>
+    <button type="button" class="btn btn-secondary mb-2" onclick="exportPDF()">Plan als PDF exportieren</button>
+    <div id="pdfPreview"></div>
+  </div>
 </div>
 
 <script type="module">
 import { db } from './firebase.js';
 import { collection, doc, setDoc, getDocs, updateDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-// --- Minis verwalten ---
+// --------------------- Miniliste ---------------------
 async function importMinis(){
-    const lines = document.getElementById("minisImport").value.split("\n").map(s=>s.trim()).filter(s=>s);
-    for(let l of lines){
-        const docRef = doc(db,'minis',l);
-        await setDoc(docRef,{name:l,kannWeihrauch:false,geschwister:[],verfuegbarAn:[]});
-    }
-    loadMinis();
+  const lines = document.getElementById("minisImport").value.split("\n").map(s=>s.trim()).filter(s=>s);
+  for(let l of lines){
+    const docRef = doc(db,'minis',l);
+    await setDoc(docRef,{name:l,kannWeihrauch:false,geschwister:[],verfuegbarAn:[]});
+  }
+  loadMinis();
 }
 
 async function loadMinis(){
-    const minisCol = collection(db,'minis');
-    const minisSnap = await getDocs(minisCol);
-    const container = document.getElementById("minisList");
-    container.innerHTML = "";
-    minisSnap.forEach(doc=>{
-        const mini = doc.data();
-        const div = document.createElement("div");
-        div.className = "card";
-        div.innerHTML = `
-          <input type="text" value="${mini.name}" onchange="updateMini('${doc.id}',this.value)">
-          <label><input type="checkbox" onchange="toggleWeihrauch('${doc.id}',this.checked)"> Weihrauch</label>
-        `;
-        container.appendChild(div);
-    });
+  const minisCol = collection(db,'minis');
+  const minisSnap = await getDocs(minisCol);
+  const container = document.getElementById("minisList");
+  container.innerHTML="";
+  minisSnap.forEach(doc=>{
+    const mini = doc.data();
+    const div = document.createElement("div");
+    div.className="card d-flex justify-content-between align-items-center";
+    div.innerHTML=`
+      <span><input type="text" value="${mini.name}" onchange="updateMini('${doc.id}',this.value)"></span>
+      <span><label><input type="checkbox" onchange="toggleWeihrauch('${doc.id}',this.checked)"> Weihrauch</label></span>
+      <button type="button" class="btn btn-withdraw btn-sm" onclick="deleteMini('${doc.id}')">Löschen</button>
+    `;
+    container.appendChild(div);
+  });
 }
 
-async function updateMini(id,newName){
-    const docRef = doc(db,'minis',id);
-    await updateDoc(docRef,{name:newName});
-}
+async function updateMini(id,newName){ const docRef = doc(db,'minis',id); await updateDoc(docRef,{name:newName}); }
+async function toggleWeihrauch(id,value){ const docRef = doc(db,'minis',id); await updateDoc(docRef,{kannWeihrauch:value}); }
+async function deleteMini(id){ if(confirm("Mini wirklich löschen?")){ await setDoc(doc(db,'minis',id),{}); loadMinis(); } }
 
-async function toggleWeihrauch(id,value){
-    const docRef = doc(db,'minis',id);
-    await updateDoc(docRef,{kannWeihrauch:value});
-}
-
-// --- Godis verwalten ---
+// --------------------- Gottesdienste ---------------------
 async function importGodis(){
-    const lines = document.getElementById("godisImport").value.split("\n").map(s=>s.trim()).filter(s=>s);
-    for(let l of lines){
-        const [datum,uhrzeit,anlass,minAnzahl,weihrauch] = l.split(",");
-        const docRef = doc(db,'godis',datum+"_"+uhrzeit);
-        await setDoc(docRef,{
-            datum, uhrzeit, anlass, minAnzahl:parseInt(minAnzahl), weihrauch:weihrauch==="true", veroeffentlicht:false
-        });
-    }
-    loadGodis();
+  const lines = document.getElementById("godisImport").value.split("\n").map(s=>s.trim()).filter(s=>s);
+  for(let l of lines){
+    const [datum,uhrzeit,anlass,minAnzahl,weihrauch] = l.split(",");
+    const docRef = doc(db,'godis',datum+"_"+uhrzeit);
+    await setDoc(docRef,{
+      datum, uhrzeit, anlass, minAnzahl:parseInt(minAnzahl), weihrauch:weihrauch==="true", veroeffentlicht:false
+    });
+  }
+  loadGodis();
 }
 
 async function loadGodis(){
-    const godisCol = collection(db,'godis');
-    const godisSnap = await getDocs(godisCol);
-    const container = document.getElementById("godisList");
-    container.innerHTML="";
-    godisSnap.forEach(doc=>{
-        const g = doc.data();
-        const div = document.createElement("div");
-        div.className = "card"+(g.weihrauch?" weihrauch":"");
-        div.innerHTML = `<b>${g.datum} ${g.uhrzeit}</b> - ${g.anlass} - ${g.minAnzahl} Minis - Weihrauch: ${g.weihrauch}`;
-        container.appendChild(div);
-    });
+  const godisCol = collection(db,'godis');
+  const godisSnap = await getDocs(godisCol);
+  const container = document.getElementById("godisList");
+  container.innerHTML="";
+  godisSnap.forEach(doc=>{
+    const g=doc.data();
+    const div=document.createElement("div");
+    div.className="card";
+    div.innerHTML=`${g.datum} ${g.uhrzeit} - ${g.anlass} - ${g.minAnzahl} Minis - Weihrauch: ${g.weihrauch}`;
+    container.appendChild(div);
+  });
 }
 
-// --- Veröffentlichung ---
-async function veroeffentlichen(){
-    const godisCol = collection(db,'godis');
-    const godisSnap = await getDocs(godisCol);
-    for(let docSnap of godisSnap.docs){
-        const docRef = doc(db,'godis',docSnap.id);
-        await updateDoc(docRef,{veroeffentlicht:true});
-    }
-    alert("Gottesdienste veröffentlicht");
-    loadGodis();
-}
-
-async function zurueckziehen(){
-    const godisCol = collection(db,'godis');
-    const godisSnap = await getDocs(godisCol);
-    for(let docSnap of godisSnap.docs){
-        const docRef = doc(db,'godis',docSnap.id);
-        await updateDoc(docRef,{veroeffentlicht:false});
-    }
-    alert("Gottesdienste zurückgezogen");
-    loadGodis();
-}
-
-// --- Automatische Zuteilung ---
+// --------------------- Automatische Zuteilung ---------------------
 async function automatischeZuteilung(){
-    const godisCol = collection(db,'godis');
-    const godisSnap = await getDocs(godisCol);
-    const minisCol = collection(db,'minis');
-    const minisSnap = await getDocs(minisCol);
-    const minis = minisSnap.docs.map(d=>({id:d.id,...d.data(), count:0}));
-    let output = "";
-    
-    for(let docSnap of godisSnap.docs){
-        const g = docSnap.data();
-        if(!g.veroeffentlicht) continue;
-        const assigned = [];
-        
-        // 1) Wähle zuerst 2 für Weihrauch, falls benötigt
-        if(g.weihrauch){
-            let available = minis.filter(m=>!assigned.includes(m.id));
-            available.sort((a,b)=>a.count-b.count);
-            for(let i=0;i<2 && i<available.length;i++){
-                assigned.push(available[i].id);
-                available[i].count++;
-            }
-        }
-        
-        // 2) Restliche Minis
-        let needed = g.minAnzahl - assigned.length;
-        if(needed>0){
-            let available = minis.filter(m=>!assigned.includes(m.id));
-            available.sort((a,b)=>a.count-b.count);
-            for(let i=0;i<needed && i<available.length;i++){
-                assigned.push(available[i].id);
-                available[i].count++;
-            }
-        }
-        
-        output+=`<div class="card">${g.datum} ${g.uhrzeit} - ${g.anlass}: ${assigned.map(a=>minis.find(m=>m.id===a).name).join(", ")}</div>`;
-    }
-    
-    document.getElementById("zuordnungList").innerHTML = output;
+  const godisCol = collection(db,'godis'); const godisSnap = await getDocs(godisCol);
+  const minisCol = collection(db,'minis'); const minisSnap = await getDocs(minisCol);
+  const minis = minisSnap.docs.map(d=>({id:d.id,...d.data(), count:0}));
+  let output="";
+  for(let docSnap of godisSnap.docs){
+    const g=docSnap.data(); if(!g.veroeffentlicht) continue;
+    const assigned=[]; if(g.weihrauch){ let available=minis.filter(m=>!assigned.includes(m.id)); available.sort((a,b)=>a.count-b.count);
+    for(let i=0;i<2 && i<available.length;i++){ assigned.push(available[i].id); available[i].count++; }}
+    let needed=g.minAnzahl-assigned.length;
+    if(needed>0){ let available=minis.filter(m=>!assigned.includes(m.id)); available.sort((a,b)=>a.count-b.count);
+    for(let i=0;i<needed && i<available.length;i++){ assigned.push(available[i].id); available[i].count++; }}
+    output+=`<div class="card">${g.datum} ${g.uhrzeit} - ${g.anlass}: ${assigned.map(a=>minis.find(m=>m.id===a).name).join(", ")}</div>`;
+  }
+  document.getElementById("zuordnungList").innerHTML=output;
+  document.getElementById("pdfPreview").innerHTML=output;
 }
 
-// --- PDF Export ---
-function exportPDF(){
-    const element = document.getElementById("zuordnungList");
-    import("https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js").then(html2pdf=>{
-        html2pdf.default().from(element).save("Miniplan.pdf");
-    });
-}
+// --------------------- PDF Export ---------------------
+function exportPDF(){ const element=document.getElementById("pdfPreview");
+import("https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js").then(html2pdf=>{ html2pdf.default().from(element).save("Miniplan.pdf"); }); }
 
 // --- Init ---
-loadMinis();
-loadGodis();
+loadMinis(); loadGodis();
 </script>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
