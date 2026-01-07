@@ -10,14 +10,26 @@ body { padding:20px; font-family:sans-serif;}
 .card { margin-bottom:10px; padding:10px; display:flex; justify-content:space-between; align-items:center; }
 .xbtn { color:red; font-weight:bold; font-size:1.5em; cursor:pointer; }
 .xbtn.active { color:darkred; }
-.weihrauch { border-left:4px solid gold; padding-left:5px;}
+#namePicker { padding: 10px 15px; border-radius: 25px; border: 1px solid #ccc; cursor:pointer; width: 100%; max-width: 300px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;}
+#nameList { max-height:200px; overflow-y:auto; border:1px solid #ccc; display:none; margin-bottom:10px; }
+#nameList div { padding:5px; cursor:pointer; }
+#nameList div:hover { background-color:#f0f0f0; }
 </style>
 </head>
 <body>
 
 <h2>Miniplan Abmeldung</h2>
-<label>Dein Name: <input type="text" id="miniName"></label>
-<button class="btn btn-primary" onclick="loadGodis()">Los</button>
+
+<div id="fristAnzeige" class="mb-2"></div>
+
+<input type="text" id="nameSearch" class="form-control mb-2" placeholder="Name suchen" oninput="filterNames()">
+
+<div id="namePicker" onclick="toggleNameList()">
+  <span id="selectedName">Wähle deinen Namen</span> 
+  <span>&#9660;</span>
+</div>
+
+<div id="nameList"></div>
 
 <div id="godisContainer"></div>
 <button class="btn btn-success mt-2" onclick="speichern()">Speichern</button>
@@ -27,33 +39,89 @@ import { db } from './firebase.js';
 import { collection, doc, getDocs, setDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
 let aktuelleAbmeldungen = {};
+let selectedName = "";
+let alleMinis = [];
+let abmeldefrist = null;
 
+// --- Lade alle Minis ---
+async function loadMinis(){
+    const minisCol = collection(db,'minis');
+    const minisSnap = await getDocs(minisCol);
+    alleMinis = minisSnap.docs.map(d=>d.data().name).sort();
+    const nameListDiv = document.getElementById("nameList");
+    nameListDiv.innerHTML = "";
+    alleMinis.forEach(n=>{
+        const div = document.createElement("div");
+        div.textContent = n;
+        div.onclick = ()=>{ selectName(n); };
+        nameListDiv.appendChild(div);
+    });
+}
+
+// --- Namensauswahl ---
+function toggleNameList(){
+    const list = document.getElementById("nameList");
+    list.style.display = list.style.display==="none"?"block":"none";
+}
+
+function selectName(name){
+    selectedName = name;
+    document.getElementById("selectedName").textContent = name;
+    document.getElementById("nameList").style.display = "none";
+    loadGodis();
+}
+
+// --- Suchleiste ---
+function filterNames(){
+    const search = document.getElementById("nameSearch").value.toLowerCase();
+    document.querySelectorAll("#nameList div").forEach(d=>{
+        d.style.display = d.textContent.toLowerCase().includes(search)?"block":"none";
+    });
+}
+
+// --- Lade Gottesdienste ---
 async function loadGodis(){
-    const name = document.getElementById("miniName").value.trim();
-    if(!name){ alert("Bitte Namen eingeben"); return; }
-    aktuelleAbmeldungen[name]={};
+    if(!selectedName) return;
+    aktuelleAbmeldungen[selectedName]={};
     const godisCol = collection(db,'godis');
     const godisSnap = await getDocs(godisCol);
     const container = document.getElementById("godisContainer");
     container.innerHTML="";
+    
+    // Frist prüfen
+    const fristDoc = await getDocs(collection(db,'admin'));
+    if(fristDoc.docs.length>0){
+        const fristData = fristDoc.docs[0].data();
+        abmeldefrist = new Date(fristData.frist);
+        const now = new Date();
+        if(now>abmeldefrist){
+            document.getElementById("fristAnzeige").textContent = "Aktuell keine Abmeldung möglich";
+            return;
+        } else {
+            document.getElementById("fristAnzeige").textContent = "Abmeldungen möglich bis: "+abmeldefrist.toLocaleString();
+        }
+    } else {
+        document.getElementById("fristAnzeige").textContent = "";
+    }
+    
     godisSnap.forEach(docSnap=>{
         const g = docSnap.data();
         if(!g.veroeffentlicht) return;
         const card = document.createElement("div");
-        card.className = "card"+(g.weihrauch?" weihrauch":"");
-        card.title = "Klicke X, wenn du nicht teilnehmen kannst";
-        const html = `<div>${g.uhrzeit} ${g.datum} - ${g.anlass}</div>
-                      <div class="xbtn" onclick="toggleX(this,'${name}','${docSnap.id}')">X</div>`;
-        card.innerHTML = html;
+        card.className = "card";
+        card.innerHTML = `<div>${g.uhrzeit} ${g.datum} - ${g.anlass}</div>
+                          <div class="xbtn" onclick="toggleX(this,'${selectedName}','${docSnap.id}')">X</div>`;
         container.appendChild(card);
     });
 }
 
+// --- Toggle Abmeldung ---
 function toggleX(elem,name,godiID){
     elem.classList.toggle("active");
     aktuelleAbmeldungen[name][godiID] = elem.classList.contains("active")?"nein":"ja";
 }
 
+// --- Speichern ---
 async function speichern(){
     for(let mini in aktuelleAbmeldungen){
         for(let godiID in aktuelleAbmeldungen[mini]){
@@ -65,6 +133,9 @@ async function speichern(){
     }
     alert("Abmeldungen gespeichert");
 }
+
+// --- Init ---
+loadMinis();
 </script>
 
 </body>
