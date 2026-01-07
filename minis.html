@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Miniplan Abmeldung</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="firebase.js"></script>
+<style>
+body { font-family: sans-serif; padding:20px; max-width:600px; margin:auto;}
+h1,h2{text-align:center;}
+select,button{width:100%;font-size:16px;padding:6px;margin:5px 0;}
+.godi{border:1px solid #ccc;padding:8px;margin:5px 0;border-radius:5px;}
+button.nein{background-color:#f44336;color:white;border:none;border-radius:5px;padding:5px 12px;}
+button.nein.clicked{background-color:#c62828;}
+</style>
+</head>
+<body>
+<h1>Miniplan Abmeldung</h1>
+
+<h2>Wähle deinen Namen</h2>
+<select id="miniName">
+  <option value="">-- Name wählen --</option>
+</select>
+
+<div id="godis"></div>
+
+<script>
+// --- Minis Liste ---
+const minis = ["Max Mustermann","Anna Müller","Lukas Schmid","Jonas Becker","Lena Fischer"];
+const nameSelect = document.getElementById("miniName");
+minis.forEach(n=>{ const opt=document.createElement("option"); opt.value=n; opt.textContent=n; nameSelect.appendChild(opt); });
+
+// --- Godis anzeigen ---
+async function renderGodis(){
+  const container = document.getElementById("godis");
+  container.innerHTML="";
+  const configDoc = await db.collection("config").doc("frist").get();
+  const frist = configDoc.exists ? new Date(configDoc.data().wert) : null;
+  const jetzt = new Date();
+  if(frist && jetzt > frist){
+    container.innerHTML = "<p>❗ Aktuell ist keine Abmeldung möglich.</p>";
+    return;
+  }
+
+  const snapshot = await db.collection("godis").get();
+  snapshot.forEach(doc=>{
+    const gd = doc.data();
+    const div = document.createElement("div");
+    div.className="godi";
+    div.innerHTML=`${gd.datum} ${gd.uhrzeit} ${gd.anlass} <button class="nein">Nein</button>`;
+    const btn = div.querySelector("button");
+    btn.onclick = async ()=>{
+      const mini = nameSelect.value;
+      if(!mini){ alert("Bitte Namen wählen"); return;}
+      await db.collection("abmeldungen").doc(`${mini}_${doc.id}`).set({mini,godi:doc.id,status:"nein"});
+      btn.classList.add("clicked");
+    };
+    container.appendChild(div);
+  });
+}
+
+nameSelect.onchange = renderGodis;
+renderGodis();
+</script>
+</body>
+</html>
