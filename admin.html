@@ -4,66 +4,164 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Miniplan Admin</title>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-<script src="firebase.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet">
 <style>
-body { font-family: sans-serif; padding: 20px; max-width: 600px; margin:auto; }
-input, select, button { font-size: 16px; margin: 5px 0; width: 100%; padding: 6px; }
-h1, h2 { text-align: center; }
-.godi { border: 1px solid #ccc; padding: 8px; margin:5px 0; border-radius:5px;}
+body { padding: 20px; font-family: sans-serif; }
+.card { margin-bottom: 10px; }
+.btn-publish { background-color: #28a745; color: white; }
+.btn-withdraw { background-color: #6c757d; color: white; }
+.weihrauch { border-left: 4px solid gold; }
 </style>
 </head>
 <body>
-<h1>Miniplan Admin</h1>
 
-<h2>Neue Gottesdienste hinzufügen</h2>
-<input type="date" id="datum">
-<input type="time" id="uhrzeit">
-<input type="text" id="anlass" placeholder="Anlass (z.B. Festmesse)">
-<button id="addGodi">Gottesdienst speichern</button>
+<h2>Admin Miniplan</h2>
+<label>Admin-Passwort: <input type="password" id="adminPassword" placeholder="Passwort"></label>
+<button class="btn btn-primary" onclick="login()">Login</button>
+<hr>
 
-<h2>Abmeldefrist festlegen</h2>
-<input type="datetime-local" id="frist">
-<button id="saveFrist">Frist speichern</button>
+<div id="adminUI" style="display:none;">
 
-<h2>Aktuelle Gottesdienste</h2>
-<div id="godis"></div>
+<h4>Minis verwalten</h4>
+<textarea id="minisImport" rows="4" class="form-control" placeholder="Liste einfügen (ein Name pro Zeile)"></textarea>
+<button class="btn btn-success mt-2" onclick="importMinis()">Importieren / Aktualisieren</button>
+<div id="minisList"></div>
 
-<script>
-// --- Godis anzeigen ---
-async function renderGodis(){
-  const list = document.getElementById("godis");
-  list.innerHTML="";
-  const snapshot = await db.collection("godis").get();
-  snapshot.forEach(doc=>{
-    const gd = doc.data();
-    const div = document.createElement("div");
-    div.className="godi";
-    div.textContent = `${gd.datum} ${gd.uhrzeit} ${gd.anlass}`;
-    list.appendChild(div);
-  });
+<hr>
+<h4>Gottesdienste verwalten</h4>
+<textarea id="godisImport" rows="4" class="form-control" placeholder="Liste: Datum, Uhrzeit, Anlass, Anzahl, Weihrauch (true/false)"></textarea>
+<button class="btn btn-success mt-2" onclick="importGodis()">Importieren / Aktualisieren</button>
+<div id="godisList"></div>
+
+<hr>
+<h4>Frist & Veröffentlichung</h4>
+<input type="datetime-local" id="fristInput">
+<button class="btn btn-publish" onclick="veroeffentlichen()">Veröffentlichen</button>
+<button class="btn btn-withdraw" onclick="zurueckziehen()">Zurückziehen</button>
+
+<hr>
+<h4>Automatische Zuteilung</h4>
+<button class="btn btn-primary" onclick="automatischeZuteilung()">Jetzt zuordnen</button>
+<div id="zuordnungList"></div>
+
+<hr>
+<h4>PDF Export</h4>
+<button class="btn btn-secondary" onclick="exportPDF()">Plan exportieren</button>
+
+</div>
+
+<script type="module">
+import { db } from './firebase.js';
+import { collection, doc, setDoc, getDocs, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+let loggedIn = false;
+const ADMIN_PASSWORD = "geheim123"; // hier ändern
+
+function login() {
+    const pw = document.getElementById("adminPassword").value;
+    if(pw === ADMIN_PASSWORD){
+        loggedIn = true;
+        document.getElementById("adminUI").style.display = "block";
+        alert("Login erfolgreich");
+        loadMinis();
+        loadGodis();
+    } else {
+        alert("Falsches Passwort");
+    }
 }
 
-// --- Godi hinzufügen ---
-document.getElementById("addGodi").onclick = async ()=>{
-  const datum = document.getElementById("datum").value;
-  const uhrzeit = document.getElementById("uhrzeit").value;
-  const anlass = document.getElementById("anlass").value;
-  if(!datum||!uhrzeit||!anlass){ alert("Alle Felder ausfüllen"); return;}
-  await db.collection("godis").add({datum,uhrzeit,anlass});
-  renderGodis();
+// --- Minis verwalten ---
+async function importMinis(){
+    if(!loggedIn) return;
+    const lines = document.getElementById("minisImport").value.split("\n").map(s=>s.trim()).filter(s=>s);
+    const batch = collection(db,'minis');
+    for(let l of lines){
+        const docRef = doc(db,'minis',l);
+        await setDoc(docRef,{name:l,kannWeihrauch:false,geschwister:[],verfuegbarAn:[]});
+    }
+    loadMinis();
 }
 
-// --- Frist speichern ---
-document.getElementById("saveFrist").onclick = async ()=>{
-  const frist = document.getElementById("frist").value;
-  if(!frist){ alert("Frist angeben"); return;}
-  await db.collection("config").doc("frist").set({wert:frist});
-  alert("Frist gespeichert");
+async function loadMinis(){
+    const minisCol = collection(db,'minis');
+    const minisSnap = await getDocs(minisCol);
+    const container = document.getElementById("minisList");
+    container.innerHTML = "";
+    minisSnap.forEach(doc=>{
+        const mini = doc.data();
+        const div = document.createElement("div");
+        div.className = "card p-2";
+        div.innerHTML = `<input type="text" value="${mini.name}" onchange="updateMini('${doc.id}',this.value)">`;
+        container.appendChild(div);
+    });
 }
 
-renderGodis();
+async function updateMini(id,newName){
+    const docRef = doc(db,'minis',id);
+    await updateDoc(docRef,{name:newName});
+}
+
+// --- Godis verwalten ---
+async function importGodis(){
+    if(!loggedIn) return;
+    const lines = document.getElementById("godisImport").value.split("\n").map(s=>s.trim()).filter(s=>s);
+    for(let l of lines){
+        const [datum,uhrzeit,anlass,minAnzahl,weihrauch] = l.split(",");
+        const docRef = doc(db,'godis',datum+"_"+uhrzeit);
+        await setDoc(docRef,{
+            datum, uhrzeit, anlass, minAnzahl:parseInt(minAnzahl), weihrauch:weihrauch==="true", veroeffentlicht:false
+        });
+    }
+    loadGodis();
+}
+
+async function loadGodis(){
+    const godisCol = collection(db,'godis');
+    const godisSnap = await getDocs(godisCol);
+    const container = document.getElementById("godisList");
+    container.innerHTML="";
+    godisSnap.forEach(doc=>{
+        const g = doc.data();
+        const div = document.createElement("div");
+        div.className = "card p-2";
+        div.innerHTML = `<b>${g.datum} ${g.uhrzeit}</b> - ${g.anlass} - ${g.minAnzahl} Minis - Weihrauch: ${g.weihrauch}`;
+        container.appendChild(div);
+    });
+}
+
+// --- Veröffentlichung ---
+async function veroeffentlichen(){
+    const godisCol = collection(db,'godis');
+    const godisSnap = await getDocs(godisCol);
+    for(let docSnap of godisSnap.docs){
+        const docRef = doc(db,'godis',docSnap.id);
+        await updateDoc(docRef,{veroeffentlicht:true});
+    }
+    alert("Gottesdienste veröffentlicht");
+}
+
+async function zurueckziehen(){
+    const godisCol = collection(db,'godis');
+    const godisSnap = await getDocs(godisCol);
+    for(let docSnap of godisSnap.docs){
+        const docRef = doc(db,'godis',docSnap.id);
+        await updateDoc(docRef,{veroeffentlicht:false});
+    }
+    alert("Gottesdienste zurückgezogen");
+}
+
+// --- Automatische Zuteilung (vereinfacht) ---
+async function automatischeZuteilung(){
+    alert("Automatische Zuteilung startet (Geschwister, Weihrauch, fair verteilt)");
+    // Logik hier einfügen (siehe vorherige Struktur)
+    document.getElementById("zuordnungList").innerHTML="Zuteilung durchgeführt (Placeholder)";
+}
+
+// --- PDF Export ---
+function exportPDF(){
+    alert("PDF Export wird vorbereitet (kann z.B. jsPDF verwenden)");
+}
 </script>
+
 </body>
 </html>
