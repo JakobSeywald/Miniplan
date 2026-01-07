@@ -6,21 +6,18 @@
 <title>Miniplan Admin</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet">
 <style>
-body { padding: 20px; font-family: sans-serif; }
-.card { margin-bottom: 10px; }
-.btn-publish { background-color: #28a745; color: white; }
-.btn-withdraw { background-color: #6c757d; color: white; }
+body { padding:20px; font-family:sans-serif;}
+.card { margin-bottom:10px; padding:10px; }
 .weihrauch { border-left: 4px solid gold; }
+.btn-publish { background-color: #28a745; color:white; margin-right:5px; }
+.btn-withdraw { background-color: #6c757d; color:white; }
 </style>
 </head>
 <body>
 
 <h2>Admin Miniplan</h2>
-<label>Admin-Passwort: <input type="password" id="adminPassword" placeholder="Passwort"></label>
-<button class="btn btn-primary" onclick="login()">Login</button>
-<hr>
 
-<div id="adminUI" style="display:none;">
+<div id="adminUI">
 
 <h4>Minis verwalten</h4>
 <textarea id="minisImport" rows="4" class="form-control" placeholder="Liste einfügen (ein Name pro Zeile)"></textarea>
@@ -35,7 +32,7 @@ body { padding: 20px; font-family: sans-serif; }
 
 <hr>
 <h4>Frist & Veröffentlichung</h4>
-<input type="datetime-local" id="fristInput">
+<input type="datetime-local" id="fristInput" class="form-control mb-2">
 <button class="btn btn-publish" onclick="veroeffentlichen()">Veröffentlichen</button>
 <button class="btn btn-withdraw" onclick="zurueckziehen()">Zurückziehen</button>
 
@@ -52,29 +49,11 @@ body { padding: 20px; font-family: sans-serif; }
 
 <script type="module">
 import { db } from './firebase.js';
-import { collection, doc, setDoc, getDocs, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-
-let loggedIn = false;
-const ADMIN_PASSWORD = "miniplan"; // hier ändern
-
-function login() {
-    const pw = document.getElementById("adminPassword").value;
-    if(pw === ADMIN_PASSWORD){
-        loggedIn = true;
-        document.getElementById("adminUI").style.display = "block";
-        alert("Login erfolgreich");
-        loadMinis();
-        loadGodis();
-    } else {
-        alert("Falsches Passwort");
-    }
-}
+import { collection, doc, setDoc, getDocs, updateDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
 // --- Minis verwalten ---
 async function importMinis(){
-    if(!loggedIn) return;
     const lines = document.getElementById("minisImport").value.split("\n").map(s=>s.trim()).filter(s=>s);
-    const batch = collection(db,'minis');
     for(let l of lines){
         const docRef = doc(db,'minis',l);
         await setDoc(docRef,{name:l,kannWeihrauch:false,geschwister:[],verfuegbarAn:[]});
@@ -90,8 +69,11 @@ async function loadMinis(){
     minisSnap.forEach(doc=>{
         const mini = doc.data();
         const div = document.createElement("div");
-        div.className = "card p-2";
-        div.innerHTML = `<input type="text" value="${mini.name}" onchange="updateMini('${doc.id}',this.value)">`;
+        div.className = "card";
+        div.innerHTML = `
+          <input type="text" value="${mini.name}" onchange="updateMini('${doc.id}',this.value)">
+          <label><input type="checkbox" onchange="toggleWeihrauch('${doc.id}',this.checked)"> Weihrauch</label>
+        `;
         container.appendChild(div);
     });
 }
@@ -101,9 +83,13 @@ async function updateMini(id,newName){
     await updateDoc(docRef,{name:newName});
 }
 
+async function toggleWeihrauch(id,value){
+    const docRef = doc(db,'minis',id);
+    await updateDoc(docRef,{kannWeihrauch:value});
+}
+
 // --- Godis verwalten ---
 async function importGodis(){
-    if(!loggedIn) return;
     const lines = document.getElementById("godisImport").value.split("\n").map(s=>s.trim()).filter(s=>s);
     for(let l of lines){
         const [datum,uhrzeit,anlass,minAnzahl,weihrauch] = l.split(",");
@@ -123,7 +109,7 @@ async function loadGodis(){
     godisSnap.forEach(doc=>{
         const g = doc.data();
         const div = document.createElement("div");
-        div.className = "card p-2";
+        div.className = "card"+(g.weihrauch?" weihrauch":"");
         div.innerHTML = `<b>${g.datum} ${g.uhrzeit}</b> - ${g.anlass} - ${g.minAnzahl} Minis - Weihrauch: ${g.weihrauch}`;
         container.appendChild(div);
     });
@@ -138,6 +124,7 @@ async function veroeffentlichen(){
         await updateDoc(docRef,{veroeffentlicht:true});
     }
     alert("Gottesdienste veröffentlicht");
+    loadGodis();
 }
 
 async function zurueckziehen(){
@@ -148,19 +135,61 @@ async function zurueckziehen(){
         await updateDoc(docRef,{veroeffentlicht:false});
     }
     alert("Gottesdienste zurückgezogen");
+    loadGodis();
 }
 
-// --- Automatische Zuteilung (vereinfacht) ---
+// --- Automatische Zuteilung ---
 async function automatischeZuteilung(){
-    alert("Automatische Zuteilung startet (Geschwister, Weihrauch, fair verteilt)");
-    // Logik hier einfügen (siehe vorherige Struktur)
-    document.getElementById("zuordnungList").innerHTML="Zuteilung durchgeführt (Placeholder)";
+    const godisCol = collection(db,'godis');
+    const godisSnap = await getDocs(godisCol);
+    const minisCol = collection(db,'minis');
+    const minisSnap = await getDocs(minisCol);
+    const minis = minisSnap.docs.map(d=>({id:d.id,...d.data(), count:0}));
+    let output = "";
+    
+    for(let docSnap of godisSnap.docs){
+        const g = docSnap.data();
+        if(!g.veroeffentlicht) continue;
+        const assigned = [];
+        
+        // 1) Wähle zuerst 2 für Weihrauch, falls benötigt
+        if(g.weihrauch){
+            let available = minis.filter(m=>!assigned.includes(m.id));
+            available.sort((a,b)=>a.count-b.count);
+            for(let i=0;i<2 && i<available.length;i++){
+                assigned.push(available[i].id);
+                available[i].count++;
+            }
+        }
+        
+        // 2) Restliche Minis
+        let needed = g.minAnzahl - assigned.length;
+        if(needed>0){
+            let available = minis.filter(m=>!assigned.includes(m.id));
+            available.sort((a,b)=>a.count-b.count);
+            for(let i=0;i<needed && i<available.length;i++){
+                assigned.push(available[i].id);
+                available[i].count++;
+            }
+        }
+        
+        output+=`<div class="card">${g.datum} ${g.uhrzeit} - ${g.anlass}: ${assigned.map(a=>minis.find(m=>m.id===a).name).join(", ")}</div>`;
+    }
+    
+    document.getElementById("zuordnungList").innerHTML = output;
 }
 
 // --- PDF Export ---
 function exportPDF(){
-    alert("PDF Export wird vorbereitet (kann z.B. jsPDF verwenden)");
+    const element = document.getElementById("zuordnungList");
+    import("https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js").then(html2pdf=>{
+        html2pdf.default().from(element).save("Miniplan.pdf");
+    });
 }
+
+// --- Init ---
+loadMinis();
+loadGodis();
 </script>
 
 </body>
