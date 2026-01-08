@@ -4,131 +4,131 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Miniplan Admin Pro</title>
-<!-- Google Fonts -->
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<!-- Bootstrap 5 -->
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet">
-<!-- Bootstrap Icons -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
-
 <style>
 :root {
     --primary-gradient: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
     --secondary-bg: #f8fafc;
+    --accent-color: #6366f1;
 }
-body { 
-    background-color: var(--secondary-bg); 
-    font-family: 'Inter', sans-serif;
-    color: #1e293b;
-}
+body { background-color: var(--secondary-bg); font-family: 'Inter', sans-serif; color: #1e293b; }
 .navbar-brand { font-weight: 700; letter-spacing: -0.5px; }
-.card { border: none; border-radius: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 1.5rem; transition: all 0.2s; }
-.card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px rgba(0,0,0,0.1); }
+.card { border: none; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1); margin-bottom: 1.5rem; transition: all 0.2s ease;}
+.card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);}
 .nav-pills .nav-link { color: #64748b; font-weight: 600; border-radius: 10px; padding: 10px 20px; transition: all 0.3s; }
-.nav-pills .nav-link.active { background: var(--primary-gradient); box-shadow: 0 4px 12px rgba(79,70,229,0.3); }
-.form-control { border-radius: 10px; border: 1px solid #e2e8f0; padding: 12px; }
+.nav-pills .nav-link.active { background: var(--primary-gradient); box-shadow: 0 4px 12px rgba(79,70,229,0.3);}
+.form-control { border-radius: 10px; border: 1px solid #e2e8f0; padding: 12px;}
 .btn { border-radius: 10px; padding: 10px 20px; font-weight: 600; }
 .btn-primary { background: var(--primary-gradient); border: none; }
 .btn-success { background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none; }
 .badge-smoke { background-color: #fef3c7; color: #d97706; font-size: 0.75rem; padding: 5px 10px; border-radius: 20px; }
-.mini-row { display: flex; align-items: center; justify-content: space-between; padding: 12px; border-bottom: 1px solid #f1f5f9; }
+#pdfPreview { background: white; padding: 40px; border-radius: 10px; min-height: 400px; }
+.mini-row { display:flex; align-items:center; justify-content:space-between; padding:12px; border-bottom:1px solid #f1f5f9;}
 </style>
 </head>
 <body>
 
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
-<div class="container">
-<a class="navbar-brand" href="#"><i class="bi bi-person-badge-fill me-2"></i>Miniplan Admin <span class="text-primary">Pro</span></a>
-</div>
+    <div class="container">
+        <a class="navbar-brand" href="#"><i class="bi bi-person-badge-fill me-2"></i>Miniplan Admin <span class="text-primary">Pro</span></a>
+    </div>
 </nav>
 
 <div class="container">
-<div id="statusAlert"></div>
-<div class="row">
-    <div class="col-lg-3 mb-4">
-        <div class="card p-3">
-            <ul class="nav nav-pills flex-column" id="adminTabs" role="tablist">
-                <li class="nav-item mb-2">
-                    <button class="nav-link active w-100 text-start" data-bs-toggle="tab" data-bs-target="#minis">
-                        <i class="bi bi-people me-2"></i> Miniliste
-                    </button>
-                </li>
-                <li class="nav-item mb-2">
-                    <button class="nav-link w-100 text-start" data-bs-toggle="tab" data-bs-target="#godis">
-                        <i class="bi bi-calendar-event me-2"></i> Gottesdienste
-                    </button>
-                </li>
-                <li class="nav-item mb-2">
-                    <button class="nav-link w-100 text-start" data-bs-toggle="tab" data-bs-target="#zuteilung">
-                        <i class="bi bi-magic me-2"></i> Zuteilung
-                    </button>
-                </li>
-                <li class="nav-item">
-                    <button class="nav-link w-100 text-start" data-bs-toggle="tab" data-bs-target="#pdf">
-                        <i class="bi bi-file-pdf me-2"></i> PDF Export
-                    </button>
-                </li>
-            </ul>
-        </div>
+    <div id="statusAlert"></div>
+
+    <!-- Passwortschutz -->
+    <div id="passwortContainer" class="card p-4 mb-4">
+        <label class="form-label fw-semibold">Admin-Passwort eingeben</label>
+        <input type="password" id="adminPasswordInput" class="form-control mb-2" placeholder="Passwort">
+        <button class="btn btn-primary w-100" id="btnCheckPassword">Einloggen</button>
     </div>
 
-    <div class="col-lg-9">
-        <div class="tab-content">
-
-            <!-- MINIS -->
-            <div class="tab-pane fade show active" id="minis">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h4 class="fw-bold m-0">Minis verwalten</h4>
-                    <span class="badge bg-primary rounded-pill" id="miniCount">0 Minis</span>
-                </div>
-                <div class="card p-4 mb-4">
-                    <label class="form-label fw-semibold">Schnell-Import (Namen untereinander)</label>
-                    <textarea id="minisImport" rows="3" class="form-control mb-3" placeholder="Max Mustermann&#10;Erika Musterfrau"></textarea>
-                    <button type="button" class="btn btn-success w-100" id="btnImportMinis">
-                        <i class="bi bi-cloud-arrow-up me-2"></i> Liste importieren
-                    </button>
-                </div>
-                <div class="mb-3 position-relative">
-                    <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"></i>
-                    <input class="form-control ps-5" id="searchMini" placeholder="Suchen...">
-                </div>
-                <div class="card overflow-hidden">
-                    <div id="minisList"></div>
-                </div>
+    <div id="adminContent" style="display:none;">
+    <div class="row">
+        <div class="col-lg-3 mb-4">
+            <div class="card p-3">
+                <ul class="nav nav-pills flex-column" id="adminTabs" role="tablist">
+                    <li class="nav-item mb-2">
+                        <button class="nav-link active w-100 text-start" data-bs-toggle="tab" data-bs-target="#minis">
+                            <i class="bi bi-people me-2"></i> Miniliste
+                        </button>
+                    </li>
+                    <li class="nav-item mb-2">
+                        <button class="nav-link w-100 text-start" data-bs-toggle="tab" data-bs-target="#godis">
+                            <i class="bi bi-calendar-event me-2"></i> Gottesdienste
+                        </button>
+                    </li>
+                    <li class="nav-item mb-2">
+                        <button class="nav-link w-100 text-start" data-bs-toggle="tab" data-bs-target="#zuteilung">
+                            <i class="bi bi-magic me-2"></i> Zuteilung
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link w-100 text-start" data-bs-toggle="tab" data-bs-target="#pdf">
+                            <i class="bi bi-file-pdf me-2"></i> PDF Export
+                        </button>
+                    </li>
+                </ul>
             </div>
+        </div>
 
-            <!-- GOTTESDIENSTE -->
-            <div class="tab-pane fade" id="godis">
-                <h4 class="fw-bold mb-4">Gottesdienste planen</h4>
-                <div class="card p-4 mb-4 bg-dark text-white">
-                    <label class="form-label">Format: Datum, Uhrzeit, Anlass</label>
-                    <textarea id="godisImport" rows="3" class="form-control bg-dark text-white mb-3" placeholder="24.12.2023, 18:00, Kinderchristmette"></textarea>
-                    <button type="button" class="btn btn-primary w-100" id="btnImportGodis">Dienste hinzufügen</button>
+        <div class="col-lg-9">
+            <div class="tab-content">
+
+                <!-- Miniliste -->
+                <div class="tab-pane fade show active" id="minis">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4 class="fw-bold m-0">Minis verwalten</h4>
+                        <span class="badge bg-primary rounded-pill" id="miniCount">0 Minis</span>
+                    </div>
+                    <div class="card p-4 mb-4">
+                        <label class="form-label fw-semibold">Schnell-Import (Namen untereinander)</label>
+                        <textarea id="minisImport" rows="3" class="form-control mb-3" placeholder="Max Mustermann&#10;Erika Musterfrau"></textarea>
+                        <button type="button" class="btn btn-success w-100" id="btnImportMinis">
+                            <i class="bi bi-cloud-arrow-up me-2"></i> Liste importieren
+                        </button>
+                    </div>
+                    <div class="card overflow-hidden">
+                        <div id="minisList"></div>
+                    </div>
                 </div>
-                <div id="godisList" class="row"></div>
-            </div>
 
-            <!-- ZUTEILUNG -->
-            <div class="tab-pane fade" id="zuteilung">
-                <div class="card p-5 text-center bg-white">
-                    <h4 class="fw-bold">Zuteilung berechnen</h4>
-                    <button type="button" class="btn btn-primary btn-lg mt-3" id="btnAutoAssign">Zuteilung starten</button>
+                <!-- Gottesdienste -->
+                <div class="tab-pane fade" id="godis">
+                    <h4 class="fw-bold mb-4">Gottesdienste planen</h4>
+                    <div class="card p-4 mb-4">
+                        <label class="form-label">Format: Datum, Uhrzeit, Anlass</label>
+                        <textarea id="godisImport" rows="3" class="form-control mb-3" placeholder="24.12.2023, 18:00, Kinderchristmette"></textarea>
+                        <button type="button" class="btn btn-primary w-100" id="btnImportGodis">Dienste hinzufügen</button>
+                    </div>
+                    <div id="godisList" class="row"></div>
                 </div>
-                <div id="zuordnungList" class="mt-4"></div>
-            </div>
 
-            <!-- PDF -->
-            <div class="tab-pane fade" id="pdf">
-                <div class="d-flex justify-content-between mb-4">
-                    <h4 class="fw-bold">Vorschau</h4>
-                    <button type="button" class="btn btn-dark" id="btnExportPDF">Als PDF speichern</button>
+                <!-- Zuteilung -->
+                <div class="tab-pane fade" id="zuteilung">
+                    <div class="card p-5 text-center bg-white">
+                        <h4 class="fw-bold">Zuteilung berechnen</h4>
+                        <button type="button" class="btn btn-primary btn-lg mt-3" id="btnAutoAssign">Zuteilung starten</button>
+                    </div>
+                    <div id="zuordnungList" class="mt-4"></div>
                 </div>
-                <div id="pdfPreview" class="border p-4 bg-white min-vh-50"></div>
-            </div>
 
+                <!-- PDF Export -->
+                <div class="tab-pane fade" id="pdf">
+                    <div class="d-flex justify-content-between mb-4">
+                        <h4 class="fw-bold">Vorschau</h4>
+                        <button type="button" class="btn btn-dark" id="btnExportPDF">Als PDF speichern</button>
+                    </div>
+                    <div id="pdfPreview" class="border"></div>
+                </div>
+
+            </div>
         </div>
     </div>
-</div>
+    </div>
 </div>
 
 <script type="module">
@@ -136,116 +136,124 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 import { getFirestore, collection, doc, setDoc, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-// FIREBASE CONFIGURATION (eigene Werte in firebase.js setzen)
-import { firebaseConfig } from './firebase.js';
+// Firebase-Konfiguration
+const firebaseConfig = {
+    apiKey: "DEIN_API_KEY",
+    authDomain: "DEIN_PROJEKT.firebaseapp.com",
+    projectId: "DEIN_PROJEKT_ID",
+    storageBucket: "DEIN_PROJEKT.appspot.com",
+    messagingSenderId: "DEIN_SENDER_ID",
+    appId: "DEIN_APP_ID"
+};
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
+// Admin-Passwort
+const ADMIN_PASS = "Pfarrer"; // Hier ändern
+
+// UI-Elemente
+const passwortContainer = document.getElementById("passwortContainer");
+const adminContent = document.getElementById("adminContent");
+const btnCheckPassword = document.getElementById("btnCheckPassword");
+
 let allMinis = [];
 let allGodis = [];
 
-const showStatus = (msg, type='success') => {
+// Passwort-Check
+btnCheckPassword.onclick = () => {
+    const input = document.getElementById("adminPasswordInput").value;
+    if(input === ADMIN_PASS){
+        passwortContainer.style.display = "none";
+        adminContent.style.display = "block";
+        init();
+    } else { alert("Passwort falsch!"); }
+};
+
+// Helpers
+const showStatus = (msg,type='success') => {
     const alertDiv = document.getElementById('statusAlert');
     alertDiv.innerHTML = `<div class="alert alert-${type} alert-dismissible fade show">${msg}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>`;
-    setTimeout(()=>{ if(alertDiv.firstChild) alertDiv.firstChild.remove(); }, 5000);
+    setTimeout(()=>{if(alertDiv.firstChild) alertDiv.firstChild.remove()},5000);
 };
+const getPath = (col) => collection(db, 'artifacts', 'miniplan-admin', 'public', 'data', col);
+const getDocPath = (col,id) => doc(db, 'artifacts', 'miniplan-admin','public','data', col,id);
 
-// Firestore helpers
-const minisPath = collection(db,'minis');
-const godisPath = collection(db,'godis');
-
-// Initialisierung
-const init = async () => {
-    try { await signInAnonymously(auth); await loadMinis(); await loadGodis(); } 
-    catch(e){ showStatus("Firebase-Verbindung fehlgeschlagen.","danger"); }
-};
-
-// MINIS
-const loadMinis = async () => {
-    const snap = await getDocs(minisPath);
-    allMinis = snap.docs.map(d=>({id:d.id, ...d.data()})).sort((a,b)=>a.name.localeCompare(b.name));
+// Laden
+async function loadMinis(){ 
+    const snap = await getDocs(getPath('minis'));
+    allMinis = snap.docs.map(d=>({id:d.id,...d.data()}));
     document.getElementById("miniCount").innerText = `${allMinis.length} Minis`;
-    renderMinis(allMinis);
-};
-
-const renderMinis = (minis) => {
+    renderMinis();
+}
+function renderMinis(){
     const container = document.getElementById("minisList");
-    container.innerHTML = '';
-    minis.forEach(mini=>{
+    container.innerHTML="";
+    allMinis.sort((a,b)=>a.name.localeCompare(b.name)).forEach(mini=>{
         const div = document.createElement("div");
-        div.className = "mini-row";
-        div.innerHTML = `
-            <span>${mini.name}</span>
+        div.className="mini-row";
+        div.innerHTML=`<span>${mini.name}</span>
             <div>
+                <span class="badge-smoke">${mini.kannWeihrauch?'💨':''}</span>
                 <button class="btn btn-sm btn-outline-danger" id="del-${mini.id}"><i class="bi bi-trash"></i></button>
-            </div>
-        `;
+            </div>`;
         container.appendChild(div);
-        document.getElementById(`del-${mini.id}`).onclick = async ()=>{ if(confirm("Löschen?")){ await deleteDoc(doc(db,'minis',mini.id)); loadMinis(); } };
+        document.getElementById(`del-${mini.id}`).onclick=async()=>{ if(confirm("Löschen?")){await deleteDoc(getDocPath('minis',mini.id)); loadMinis();} };
     });
-};
+}
 
-// GOTTESDIENSTE
-const loadGodis = async ()=>{
-    const snap = await getDocs(godisPath);
-    allGodis = snap.docs.map(d=>({id:d.id, ...d.data()})).sort((a,b)=>a.datum.localeCompare(b.datum));
-    const container = document.getElementById("godisList");
-    container.innerHTML = '';
-    allGodis.forEach(g=>{
-        const div = document.createElement("div");
-        div.className = "col-md-6 mb-3";
-        div.innerHTML = `<div class="card p-3 border-start border-4 border-primary shadow-sm">
-            <div class="fw-bold">${g.anlass}</div>
-            <div class="small">${g.datum} | ${g.uhrzeit} Uhr</div>
-        </div>`;
-        container.appendChild(div);
-    });
-};
-
-// BUTTONS
-document.getElementById("btnImportMinis").onclick = async ()=>{
-    const text = document.getElementById("minisImport").value.split("\n").map(s=>s.trim()).filter(Boolean);
-    for(let n of text){ await setDoc(doc(db,'minis',n.replace(/\W/g,'_')),{name:n}); }
-    document.getElementById("minisImport").value='';
-    showStatus(`${text.length} Minis importiert.`);
+// Import
+document.getElementById("btnImportMinis").onclick = async()=>{
+    const names = document.getElementById("minisImport").value.split("\n").map(n=>n.trim()).filter(n=>n);
+    for(const name of names){
+        const id = name.replace(/[^a-z0-9]/gi,'_').toLowerCase();
+        await setDoc(getDocPath('minis',id), {name, kannWeihrauch:false},{merge:true});
+    }
+    document.getElementById("minisImport").value="";
+    showStatus(`${names.length} Minis importiert.`);
     await loadMinis();
 };
 
-document.getElementById("btnImportGodis").onclick = async ()=>{
-    const text = document.getElementById("godisImport").value.split("\n").map(s=>s.trim()).filter(Boolean);
-    for(let line of text){
-        const [datum,uhrzeit,anlass] = line.split(",").map(s=>s.trim());
-        await setDoc(doc(db,'godis',`${datum}_${uhrzeit.replace(":","")}`),{datum,uhrzeit,anlass});
+// Gottesdienste Import
+document.getElementById("btnImportGodis").onclick = async()=>{
+    const lines = document.getElementById("godisImport").value.split("\n").map(l=>l.trim()).filter(l=>l);
+    for(const line of lines){
+        const [datum,uhrzeit,anlass]=line.split(",").map(s=>s.trim());
+        const id=(datum+uhrzeit).replace(/\W/g,'');
+        await setDoc(getDocPath('godis',id),{datum,uhrzeit,anlass});
     }
-    document.getElementById("godisImport").value='';
-    showStatus(`${text.length} Gottesdienste importiert.`);
-    await loadGodis();
+    document.getElementById("godisImport").value="";
+    showStatus(`${lines.length} Gottesdienste importiert.`);
 };
 
-// AUTO ZUTEILUNG
-document.getElementById("btnAutoAssign").onclick = ()=>{
-    if(allGodis.length===0 || allMinis.length===0){ showStatus("Keine Minis oder Gottesdienste vorhanden","warning"); return; }
-    let html = `<table class="table table-bordered bg-white"><thead><tr><th>Datum/Uhrzeit</th><th>Anlass</th><th>Minis</th></tr></thead><tbody>`;
-    let miniCopy = allMinis.map(m=>({id:m.id,name:m.name,count:0}));
-    allGodis.forEach(g=>{
+// Zuteilung
+document.getElementById("btnAutoAssign").onclick = async()=>{
+    const godisSnap = await getDocs(getPath('godis'));
+    if(allMinis.length===0) return showStatus("Keine Minis!", "warning");
+    let html=`<table class="table table-bordered bg-white"><thead><tr><th>Tag</th><th>Anlass</th><th>Minis</th></tr></thead><tbody>`;
+    const sortedGodis=godisSnap.docs.map(d=>d.data()).sort((a,b)=>a.datum.localeCompare(b.datum));
+    let miniCounts=allMinis.map(m=>({id:m.id,name:m.name,count:0}));
+    sortedGodis.forEach(g=>{
         let assigned=[];
-        const sorted = miniCopy.sort((a,b)=>a.count-b.count);
-        for(let i=0;i<2 && i<sorted.length;i++){ assigned.push(sorted[i].name); sorted[i].count++; }
-        html+=`<tr><td>${g.datum}<br>${g.uhrzeit}</td><td>${g.anlass}</td><td>${assigned.join(", ")}</td></tr>`;
+        const others = miniCounts.sort((a,b)=>a.count-b.count);
+        while(assigned.length<3 && others.length>0){
+            assigned.push(others.shift().name);
+            miniCounts.find(m=>m.name===assigned[assigned.length-1]).count++;
+        }
+        html+=`<tr><td>${g.datum} ${g.uhrzeit}</td><td>${g.anlass}</td><td>${assigned.join(", ")}</td></tr>`;
     });
     html+=`</tbody></table>`;
-    document.getElementById("zuordnungList").innerHTML = html;
-    document.getElementById("pdfPreview").innerHTML = html;
+    document.getElementById("zuordnungList").innerHTML=html;
+    document.getElementById("pdfPreview").innerHTML=html;
 };
 
-// EXPORT PDF
-document.getElementById("btnExportPDF").onclick = ()=>{
-    import("https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js").then(h=>{h.default().from(document.getElementById("pdfPreview")).save("Plan.pdf");});
-};
-
-init();
+// Initialisierung
+async function init(){ 
+    await signInAnonymously(auth);
+    await loadMinis();
+}
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </body>
 </html>
