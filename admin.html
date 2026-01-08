@@ -143,7 +143,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 import { getFirestore, collection, doc, setDoc, getDocs, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-// --- Firebase Config (eigene Werte eintragen) ---
+// --- Firebase Config ---
 const firebaseConfig = {
     apiKey: "DEIN_API_KEY",
     authDomain: "DEIN_PROJEKT.firebaseapp.com",
@@ -160,78 +160,85 @@ const auth = getAuth(app);
 let allMinis = [];
 let allGodis = [];
 
-const ADMIN_PASSWORD = "deinPasswortHier"; // <-- Passwort hier ändern
+const ADMIN_PASSWORD = "Pfarrerzahlt123";
 
-// Hilfsfunktion für Statusmeldungen
-const showStatus = (msg,type="success") => {
-    const alertDiv = document.getElementById('statusAlert');
-    alertDiv.innerHTML = `<div class="alert alert-${type} alert-dismissible fade show">${msg}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>`;
+// --- Statusanzeige ---
+const showStatus=(msg,type="success")=>{
+    const alertDiv=document.getElementById('statusAlert');
+    alertDiv.innerHTML=`<div class="alert alert-${type} alert-dismissible fade show">${msg}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>`;
     setTimeout(()=>{if(alertDiv.firstChild) alertDiv.firstChild.remove();},5000);
 };
 
-// Pfade
-const getPath = (col)=> collection(db,'artifacts','meine-mini-app','public','data',col);
-const getDocPath = (col,id)=> doc(db,'artifacts','meine-mini-app','public','data',col,id);
+// --- Pfade ---
+const getPath=(col)=>collection(db,'artifacts','meine-mini-app','public','data',col);
+const getDocPath=(col,id)=>doc(db,'artifacts','meine-mini-app','public','data',col,id);
 
 // --- Login ---
-document.getElementById("loginBtn").onclick = ()=>{
-    let pw = document.getElementById("adminPassword").value.trim();
-    if(pw === ADMIN_PASSWORD){
+document.getElementById("loginBtn").onclick=()=>{
+    const pw=document.getElementById("adminPassword").value.trim();
+    if(pw===ADMIN_PASSWORD){
         document.getElementById("loginModal").style.display="none";
         document.getElementById("mainNav").style.display="block";
         document.getElementById("adminContent").style.display="block";
         init();
     } else {
-        const err = document.getElementById("loginError");
-        err.style.display="block";
-        err.innerText="Falsches Passwort!";
+        const err=document.getElementById("loginError");
+        err.style.display="block"; err.innerText="Falsches Passwort!";
     }
 };
 
 // --- Initialisierung ---
-const init = async ()=>{
+const init=async()=>{
     await signInAnonymously(auth);
     await loadMinis();
     await loadGodis();
 };
 
 // --- Minis ---
-const loadMinis = async ()=>{
-    const snap = await getDocs(getPath('minis'));
-    allMinis = snap.docs.map(d=>({id:d.id,...d.data()}));
+const loadMinis=async()=>{
+    const snap=await getDocs(getPath('minis'));
+    allMinis=snap.docs.map(d=>({id:d.id,...d.data()}));
     allMinis.sort((a,b)=>a.name.localeCompare(b.name));
     document.getElementById("miniCount").innerText=`${allMinis.length} Minis`;
     renderMinis(allMinis);
 };
 
-const renderMinis = (minis)=>{
-    const container = document.getElementById("minisList");
-    container.innerHTML = minis.length===0?'<div class="p-4">Noch keine Minis.</div>':'';
+const renderMinis=(minis)=>{
+    const container=document.getElementById("minisList");
+    container.innerHTML=minis.length===0?'<div class="p-4">Noch keine Minis.</div>':'';
     minis.forEach(mini=>{
-        const div = document.createElement("div");
+        const div=document.createElement("div");
         div.className="mini-row";
         div.innerHTML=`
             <span><strong>${mini.name}</strong></span>
             <div>
-                <span class="weihrauch-btn" id="wr-${mini.id}">💨</span>
-                <button class="btn btn-sm btn-outline-danger" id="del-${mini.id}"><i class="bi bi-trash"></i></button>
+                <span class="weihrauch-btn" data-id="${mini.id}">💨</span>
+                <button class="btn btn-sm btn-outline-danger" data-id="${mini.id}"><i class="bi bi-trash"></i></button>
             </div>
         `;
         container.appendChild(div);
-        document.getElementById(`wr-${mini.id}`).onclick=async ()=>{
-            await updateDoc(getDocPath('minis',mini.id),{kannWeihrauch: !mini.kannWeihrauch});
+    });
+
+    // Event Binding dynamisch
+    container.querySelectorAll(".weihrauch-btn").forEach(btn=>{
+        btn.onclick=async()=>{
+            const id=btn.getAttribute("data-id");
+            const mini=allMinis.find(m=>m.id===id);
+            await updateDoc(getDocPath('minis',id),{kannWeihrauch:!mini.kannWeihrauch});
             mini.kannWeihrauch=!mini.kannWeihrauch;
         };
-        document.getElementById(`del-${mini.id}`).onclick=async ()=>{
-            if(confirm("Löschen?")){
-                await deleteDoc(getDocPath('minis',mini.id));
-                loadMinis();
-            }
+    });
+
+    container.querySelectorAll(".btn-outline-danger").forEach(btn=>{
+        btn.onclick=async()=>{
+            const id=btn.getAttribute("data-id");
+            if(confirm("Löschen?")){ await deleteDoc(getDocPath('minis',id)); loadMinis(); }
         };
     });
 };
 
-document.getElementById("btnImportMinis").onclick=async ()=>{
+// Import Minis
+document.getElementById("btnImportMinis").onclick=async()=>{
     const names=document.getElementById("minisImport").value.split("\n").map(n=>n.trim()).filter(n=>n);
     for(const name of names){
         const id=name.replace(/[^a-z0-9]/gi,'_').toLowerCase();
@@ -243,11 +250,11 @@ document.getElementById("btnImportMinis").onclick=async ()=>{
 };
 
 // --- Gottesdienste ---
-const loadGodis = async ()=>{
-    const snap = await getDocs(getPath('godis'));
-    allGodis = snap.docs.map(d=>({id:d.id,...d.data()}));
+const loadGodis=async()=>{
+    const snap=await getDocs(getPath('godis'));
+    allGodis=snap.docs.map(d=>({id:d.id,...d.data()}));
     allGodis.sort((a,b)=>{
-        if(a.datum!==b.datum) return a.datum.localeCompare(b.datum);
+        if(a.datum!==b.datum)return a.datum.localeCompare(b.datum);
         return a.uhrzeit.localeCompare(b.uhrzeit);
     });
     const container=document.getElementById("godisList");
@@ -263,7 +270,8 @@ const loadGodis = async ()=>{
     });
 };
 
-document.getElementById("btnImportGodis").onclick=async ()=>{
+// Import Godis
+document.getElementById("btnImportGodis").onclick=async()=>{
     const lines=document.getElementById("godisImport").value.split("\n").filter(l=>l.trim());
     for(const line of lines){
         const [datum,uhrzeit,anlass]=line.split(",").map(s=>s.trim());
@@ -275,7 +283,7 @@ document.getElementById("btnImportGodis").onclick=async ()=>{
     loadGodis();
 };
 
-// --- Automatische Zuteilung (Planung) ---
+// Automatische Zuteilung
 document.getElementById("btnAutoAssign").onclick=()=>{
     const container=document.getElementById("zuordnungList");
     let html=`<table class="table table-bordered bg-white"><thead><tr><th>Datum</th><th>Anlass</th><th>Minis</th></tr></thead><tbody>`;
@@ -292,11 +300,16 @@ document.getElementById("btnAutoAssign").onclick=()=>{
     document.getElementById("pdfPreview").innerHTML=html;
 };
 
-// --- PDF Export ---
+// PDF Export
 document.getElementById("btnExportPDF").onclick=()=>{
     import("https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js").then(h=>{
         h.default().from(document.getElementById("pdfPreview")).save("Miniplan.pdf");
     });
+};
+
+// Suche
+document.getElementById("searchMini").oninput=(e)=>{
+    renderMinis(allMinis.filter(m=>m.name.toLowerCase().includes(e.target.value.toLowerCase())));
 };
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"></script>
