@@ -176,18 +176,20 @@ import { collection, doc, setDoc, getDocs, deleteDoc } from "https://www.gstatic
 // ----------- Passwort ------------
 const ADMIN_PASSWORD = "123";
 document.getElementById("loginBtn").onclick = ()=>{
-    const pw = document.getElementById("adminPassword").value;
-    if(pw===ADMIN_PASSWORD){
-        document.getElementById("loginModal").style.display="none";
-        document.getElementById("mainNav").style.display="block";
-        document.getElementById("adminContent").style.display="block";
+    let pw = document.getElementById("adminPassword").value;
+    pw = pw.trim(); // Leerzeichen am Anfang/Ende entfernen
+    if(pw === ADMIN_PASSWORD){
+        document.getElementById("loginModal").style.display = "none";
+        document.getElementById("mainNav").style.display = "block";
+        document.getElementById("adminContent").style.display = "block";
         loadMinis();
         loadGodis();
-    }else{
-        document.getElementById("loginError").style.display="block";
+    } else {
+        const err = document.getElementById("loginError");
+        err.style.display = "block";
+        err.innerText = "Falsches Passwort!";
     }
 };
-
 // ----------- Status ---------
 const showStatus=(msg,type='success')=>{
     const alertDiv=document.getElementById('statusAlert');
